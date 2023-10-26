@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>CONNECTION TO METAMASK</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.2.7-rc.0/web3.min.js"></script>
+    <style>
+        body {
+            background-color: palevioletred;
+            font-size: 33px;
+            text-align: center;
+        }
+        button {
+            background-color: aquamarine;
+            font-size: 33px;
+            font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+        }
+        button:hover {
+            background-color: yellow;
+        }
+        .input-box {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <button onclick="connectMetamask()">CONNECT TO METAMASK</button> <br>
+    <p id="accountArea"></p>
+    <button onclick="connectContract()">CONNECT TO CONTRACT</button> <br>
+    <p id="contractArea"></p>
+
+    <h3>Enter Voting Data:</h3>
+    <div class="input-box">
+        <label>For Donors:</label> <br>
+        Incentive: <input type="number" id="donorIncentive"> <br>
+        Weight: <input type="number" id="donorWeight"> <br>
+        <button onclick="voteAsDonor()">Submit as Donor</button>
+    </div>
+    
+    <div class="input-box">
+        <label>For Hospitals:</label> <br>
+        Incentive: <input type="number" id="hospitalIncentive"> <br>
+        Weight: <input type="number" id="hospitalWeight"> <br>
+        <button onclick="voteAsHospital()">Submit as Hospital</button>
+    </div>
+    <p id="message"></p>
+
+    <button onclick="calculateAverage()">Calculate Average</button>
+    <p>Average Incentive: <span id="averageResult">0</span></p>
+
+    <script>
+        let account;
+        let hasVoted = false; // Flag to check if the user has already voted
+
+        const connectMetamask = async () => {
+            if (typeof window.ethereum !== "undefined") {
+                const accounts = await ethereum.request({method: "eth_requestAccounts"});
+                account = accounts[0];
+                document.getElementById("accountArea").innerHTML = account;
+            }
+        }
+
+        const connectContract = async () => {
+            const ABI = [ [
+	{
+		"inputs": [],
+		"name": "getAverageDonorIncentive",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getAverageDonorWeight",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getAverageHospitalIncentive",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getAverageHospitalWeight",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getTotalAverageWeight",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getVoterCounts",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "donorCount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "hospitalCount",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getWeightedMean",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "donorWeightedMean",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "hospitalWeightedMean",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "overallWeightedMean",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "incentiveValue",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "weight",
+				"type": "uint256"
+			}
+		],
+		"name": "voteAsDonor",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "incentiveValue",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "weight",
+				"type": "uint256"
+			}
+		],
+		"name": "voteAsHospital",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+] ];
+            const Address = "0xA4FF733bc3cB1c4335412Ea795AdC8fAc1df26ea";
+            window.web3 = await new Web3(window.ethereum);
+            window.contract = await new window.web3.eth.Contract(ABI, Address); 
+            document.getElementById("contractArea").innerHTML = "Connected to smart contract";
+        }
+
+        const voteAsDonor = async () => {
+            if (hasVoted) {
+                document.getElementById("message").innerText = "You have already voted!";
+                return;
+            }
+            const incentive = document.getElementById("donorIncentive").value;
+            const weight = document.getElementById("donorWeight").value;
+
+            if (incentive && weight) {
+                await window.contract.methods.voteAsDonor(incentive, weight).send({ from: account });
+                document.getElementById("message").innerText = "Vote as donor submitted!";
+                hasVoted = true; // Set the flag to true after voting
+            } else {
+                alert("Please fill out both fields before submitting.");
+            }
+        }
+
+        const voteAsHospital = async () => {
+            if (hasVoted) {
+                document.getElementById("message").innerText = "You have already voted!";
+                return;
+            }
+            const incentive = document.getElementById("hospitalIncentive").value;
+            const weight = document.getElementById("hospitalWeight").value;
+
+            if (incentive && weight) {
+                await window.contract.methods.voteAsHospital(incentive, weight).send({ from: account });
+                document.getElementById("message").innerText = "Vote as hospital submitted!";
+                hasVoted = true; // Set the flag to true after voting
+            } else {
+                alert("Please fill out both fields before submitting.");
+            }
+        }
+
+        const calculateAverage = () => {
+            const donorIncentive = parseFloat(document.getElementById("donorIncentive").value) || 0;
+            const donorWeight = parseFloat(document.getElementById("donorWeight").value) || 1;
+            const hospitalIncentive = parseFloat(document.getElementById("hospitalIncentive").value) || 0;
+            const hospitalWeight = parseFloat(document.getElementById("hospitalWeight").value) || 1;
+
+            // Weighted average calculation
+            const average = (donorIncentive * donorWeight + hospitalIncentive * hospitalWeight) / (donorWeight + hospitalWeight);
+            document.getElementById("averageResult").innerText = average.toFixed(2);
+        }
+    </script>
+</body>
+</html>
+
